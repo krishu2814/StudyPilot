@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: studypilot_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: studypilot
+      POSTGRES_PASSWORD: studypilot123
+      POSTGRES_DB: studypilot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studypilot -d studypilot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
