@@ -6,6 +6,7 @@ import subjectRouter from "./routes/subject.routes.js";
 import documentRouter from "./routes/document.routes.js";
 import searchRouter from "./routes/search.routes.js";
 import chatRouter from "./routes/chat.routes.js";
+import quizRouter from "./routes/quiz.routes.js";
 
 export const createApp = () => {
   const app = express();
@@ -22,6 +23,7 @@ export const createApp = () => {
   app.use("/api/documents", documentRouter);
   app.use("/api/search", searchRouter);
   app.use("/api/conversations", chatRouter);
+  app.use("/api/quizzes", quizRouter);
 
   // Fallback 404 handler
   app.use((_req, res) => {
