@@ -3,6 +3,7 @@ import cors from "cors";
 import healthRouter from "./routes/health.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import subjectRouter from "./routes/subject.routes.js";
+import documentRouter from "./routes/document.routes.js";
 
 export const createApp = () => {
   const app = express();
@@ -16,6 +17,7 @@ export const createApp = () => {
   app.use("/", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/subjects", subjectRouter);
+  app.use("/api/documents", documentRouter);
 
   // Fallback 404 handler
   app.use((_req, res) => {
