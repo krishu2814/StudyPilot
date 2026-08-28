@@ -5,6 +5,7 @@ import authRouter from "./routes/auth.routes.js";
 import subjectRouter from "./routes/subject.routes.js";
 import documentRouter from "./routes/document.routes.js";
 import searchRouter from "./routes/search.routes.js";
+import chatRouter from "./routes/chat.routes.js";
 
 export const createApp = () => {
   const app = express();
@@ -20,6 +21,7 @@ export const createApp = () => {
   app.use("/api/subjects", subjectRouter);
   app.use("/api/documents", documentRouter);
   app.use("/api/search", searchRouter);
+  app.use("/api/conversations", chatRouter);
 
   // Fallback 404 handler
   app.use((_req, res) => {
