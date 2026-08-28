@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import healthRouter from "./routes/health.routes.js";
+import authRouter from "./routes/auth.routes.js";
 
 export const createApp = () => {
   const app = express();
@@ -12,6 +13,7 @@ export const createApp = () => {
 
   // Routes
   app.use("/", healthRouter);
+  app.use("/api/auth", authRouter);
 
   // Fallback 404 handler
   app.use((_req, res) => {
