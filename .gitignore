@@ -24,7 +24,6 @@ logs/
 # Testing coverage
 coverage/
 .nyc_output/
-tests/
 
 # IDE / OS
 .DS_Store
