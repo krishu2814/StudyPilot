@@ -1,6 +1,8 @@
 import path from "path";
 import { documentRepository, DocumentRepository } from "../repositories/document.repository.js";
 import { subjectRepository, SubjectRepository } from "../repositories/subject.repository.js";
+import { vectorRepository, VectorRepository } from "../repositories/vector.repository.js";
+import { embeddingService, EmbeddingService } from "./embedding.service.js";
 import { DocumentParser } from "../utils/documentParser.js";
 import { RecursiveCharacterTextSplitter, defaultTextSplitter } from "../utils/textSplitter.js";
 
@@ -21,6 +23,8 @@ export class DocumentService {
   constructor(
     private docRepo: DocumentRepository = documentRepository,
     private subjectRepo: SubjectRepository = subjectRepository,
+    private vectorRepo: VectorRepository = vectorRepository,
+    private embService: EmbeddingService = embeddingService,
     private splitter: RecursiveCharacterTextSplitter = defaultTextSplitter
   ) {}
 
@@ -75,6 +79,18 @@ export class DocumentService {
         topicId: topicId || null,
       })),
     });
+
+    // Generate vector embeddings and persist in pgvector
+    try {
+      const embeddings = await this.embService.embedBatch(chunkTexts);
+      const itemsToUpdate = document.chunks.map((chunk, index) => ({
+        chunkId: chunk.id,
+        embedding: embeddings[index],
+      }));
+      await this.vectorRepo.updateChunkEmbeddingsBatch(itemsToUpdate);
+    } catch (err) {
+      console.warn("Failed to generate/save vector embeddings for document chunks:", err);
+    }
 
     return {
       document,

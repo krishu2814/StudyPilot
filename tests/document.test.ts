@@ -58,6 +58,7 @@ describe("Document Ingestion Endpoints", () => {
       };
 
       jest.spyOn(prisma.document, "create").mockResolvedValueOnce(mockDocument as any);
+      jest.spyOn(prisma, "$transaction").mockResolvedValueOnce([] as any);
 
       const fileContent = Buffer.from("This is study material for DBMS.", "utf-8");
 
