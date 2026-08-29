@@ -11,6 +11,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { apiRequest } from "../api/client.ts";
+import { MarkdownRenderer } from "../components/MarkdownRenderer.tsx";
 
 interface Conversation {
   id: string;
@@ -396,26 +397,30 @@ export const ChatTutorView: React.FC = () => {
 
                   <div
                     style={{
-                      maxWidth: "75%",
-                      padding: "14px 18px",
+                      maxWidth: isUser ? "75%" : "88%",
+                      padding: "16px 22px",
                       borderRadius: "var(--radius-lg)",
-                      background: isUser ? "var(--primary)" : "var(--bg-subtle)",
+                      background: isUser ? "var(--primary)" : "var(--bg-surface)",
                       color: isUser ? "#ffffff" : "var(--text-primary)",
-                      boxShadow: isUser ? "0 4px 12px rgba(79, 70, 229, 0.25)" : "var(--shadow-sm)",
+                      boxShadow: isUser ? "0 4px 14px rgba(79, 70, 229, 0.25)" : "var(--shadow-md)",
+                      border: isUser ? "none" : "1px solid rgba(226, 232, 240, 0.9)",
                       borderTopRightRadius: isUser ? "4px" : "var(--radius-lg)",
                       borderTopLeftRadius: !isUser ? "4px" : "var(--radius-lg)",
                       fontSize: "0.925rem",
-                      whiteSpace: "pre-wrap",
-                      lineHeight: "1.6",
+                      lineHeight: "1.65",
                     }}
                   >
-                    {msg.content}
+                    {isUser ? (
+                      <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{msg.content}</p>
+                    ) : (
+                      <MarkdownRenderer content={msg.content} />
+                    )}
 
                     {/* Source Citations */}
                     {sources && sources.length > 0 && (
-                      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid rgba(0, 0, 0, 0.08)", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      <div style={{ marginTop: "14px", paddingTop: "10px", borderTop: "1px solid rgba(0, 0, 0, 0.06)", display: "flex", flexWrap: "wrap", gap: "6px" }}>
                         <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-                          <BookOpen size={12} /> Sources:
+                          <BookOpen size={12} /> Grounded Sources:
                         </span>
                         {sources.map((src, idx) => (
                           <span key={idx} className="badge badge-primary" style={{ fontSize: "0.68rem" }}>
@@ -426,8 +431,8 @@ export const ChatTutorView: React.FC = () => {
                     )}
 
                     {provider && (
-                      <div style={{ marginTop: "6px", textAlign: "right" }}>
-                        <span style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>via {provider}</span>
+                      <div style={{ marginTop: "8px", textAlign: "right" }}>
+                        <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: "500" }}>via {provider}</span>
                       </div>
                     )}
                   </div>
