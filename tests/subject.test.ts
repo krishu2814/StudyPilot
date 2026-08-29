@@ -112,7 +112,67 @@ describe("Subject & Topic Endpoints", () => {
     });
   });
 
+  describe("DELETE /api/subjects/:id", () => {
+    it("should delete subject successfully", async () => {
+      jest.spyOn(prisma.subject, "findFirst").mockResolvedValueOnce({
+        id: "sub-1",
+        userId: testUserId,
+        name: "DBMS",
+      } as any);
+
+      jest.spyOn(prisma.subject, "delete").mockResolvedValueOnce({
+        id: "sub-1",
+        userId: testUserId,
+        name: "DBMS",
+      } as any);
+
+      const res = await request(app)
+        .delete("/api/subjects/sub-1")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toContain("deleted successfully");
+    });
+
+    it("should return 404 if deleting non-existent subject", async () => {
+      jest.spyOn(prisma.subject, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .delete("/api/subjects/sub-unknown")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Subject not found");
+    });
+  });
+
   describe("POST /api/subjects/:subjectId/topics", () => {
+    it("should fail if topic name is missing", async () => {
+      const res = await request(app)
+        .post("/api/subjects/sub-1/topics")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ name: "" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Topic name is required");
+    });
+
+    it("should fail if subject does not exist", async () => {
+      jest.spyOn(prisma.subject, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post("/api/subjects/sub-unknown/topics")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ name: "Indexing" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Subject not found");
+    });
+
     it("should add a topic to an existing subject", async () => {
       jest.spyOn(prisma.subject, "findFirst").mockResolvedValueOnce({
         id: "sub-1",
@@ -144,6 +204,18 @@ describe("Subject & Topic Endpoints", () => {
   });
 
   describe("GET /api/subjects/:subjectId/topics", () => {
+    it("should return 404 if subject not found", async () => {
+      jest.spyOn(prisma.subject, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .get("/api/subjects/sub-unknown/topics")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Subject not found");
+    });
+
     it("should return topics for a subject", async () => {
       jest.spyOn(prisma.subject, "findFirst").mockResolvedValueOnce({
         id: "sub-1",
@@ -206,6 +278,18 @@ describe("Subject & Topic Endpoints", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
+    });
+
+    it("should return 404 when deleting non-existent topic", async () => {
+      jest.spyOn(prisma.topic, "findUnique").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .delete("/api/subjects/topics/top-ghost")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Topic not found");
     });
   });
 });

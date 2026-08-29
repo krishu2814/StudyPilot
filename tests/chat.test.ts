@@ -134,6 +134,36 @@ describe("Chat & AI Tutor Endpoints", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.conversation.title).toBe("Renamed Title");
     });
+
+    it("should fail if new title is empty", async () => {
+      jest.spyOn(prisma.conversation, "findFirst").mockResolvedValueOnce({
+        id: "conv-1",
+        userId: testUserId,
+        title: "Old Title",
+      } as any);
+
+      const res = await request(app)
+        .patch("/api/conversations/conv-1")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ title: "   " });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Title cannot be empty");
+    });
+
+    it("should return 404 when updating non-existent conversation", async () => {
+      jest.spyOn(prisma.conversation, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .patch("/api/conversations/conv-unknown")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ title: "New Title" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Conversation not found");
+    });
   });
 
   describe("DELETE /api/conversations/:id", () => {
@@ -155,6 +185,18 @@ describe("Chat & AI Tutor Endpoints", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toContain("deleted successfully");
     });
+
+    it("should return 404 when deleting non-existent conversation", async () => {
+      jest.spyOn(prisma.conversation, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .delete("/api/conversations/conv-unknown")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Conversation not found");
+    });
   });
 
   describe("POST /api/conversations/:id/messages", () => {
@@ -167,6 +209,19 @@ describe("Chat & AI Tutor Endpoints", () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
       expect(res.body.error).toContain("Message content cannot be empty");
+    });
+
+    it("should fail when sending message to non-existent conversation", async () => {
+      jest.spyOn(prisma.conversation, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .post("/api/conversations/conv-unknown/messages")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ content: "Hello?" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Conversation not found");
     });
 
     it("should process user message, retrieve RAG context, and return AI Tutor response", async () => {

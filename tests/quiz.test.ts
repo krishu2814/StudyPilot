@@ -145,15 +145,54 @@ describe("Quiz & Active Recall Endpoints", () => {
   });
 
   describe("POST /api/quizzes/:id/submit", () => {
-    it("should grade answers and return results", async () => {
+    it("should fail if quiz has already been submitted and completed", async () => {
+      jest.spyOn(prisma.quiz, "findFirst").mockResolvedValueOnce({
+        id: "quiz-1",
+        userId: testUserId,
+        topicName: "DBMS",
+        completed: true,
+      } as any);
+
+      const res = await request(app)
+        .post("/api/quizzes/quiz-1/submit")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ answers: [{ questionId: "q-1", userAnswer: "ans" }] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("already been submitted");
+    });
+
+    it("should fail if answers array is empty or not provided", async () => {
+      jest.spyOn(prisma.quiz, "findFirst").mockResolvedValueOnce({
+        id: "quiz-1",
+        userId: testUserId,
+        topicName: "DBMS",
+        completed: false,
+        questions: [],
+      } as any);
+
+      const res = await request(app)
+        .post("/api/quizzes/quiz-1/submit")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send({ answers: [] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("provide answers");
+    });
+
+    it("should grade answers, record topic progress, and return results", async () => {
       const mockQuiz = {
         id: "quiz-1",
         userId: testUserId,
+        subjectId: "sub-1",
         topicName: "DBMS Normalization",
         completed: false,
         questions: [
           {
             id: "q-1",
+            topicId: "top-1",
             questionText: "What is 1NF?",
             expectedAnswer: "Each column must contain atomic values.",
             difficulty: "beginner",
@@ -163,6 +202,7 @@ describe("Quiz & Active Recall Endpoints", () => {
 
       jest.spyOn(prisma.quiz, "findFirst").mockResolvedValueOnce(mockQuiz as any);
       jest.spyOn(prisma, "$transaction").mockResolvedValueOnce([] as any);
+      jest.spyOn(prisma.userTopicProgress, "upsert").mockResolvedValueOnce({} as any);
 
       const res = await request(app)
         .post("/api/quizzes/quiz-1/submit")
@@ -254,6 +294,18 @@ describe("Quiz & Active Recall Endpoints", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toContain("deleted successfully");
+    });
+
+    it("should return 404 when deleting non-existent quiz", async () => {
+      jest.spyOn(prisma.quiz, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .delete("/api/quizzes/quiz-ghost")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Quiz not found");
     });
   });
 });

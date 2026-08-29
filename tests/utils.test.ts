@@ -51,6 +51,13 @@ describe("DocumentParser Utility", () => {
     expect(result).toBe(markdown);
   });
 
+  it("should attempt to parse PDF buffer and fail gracefully on corrupt buffer", async () => {
+    const buffer = Buffer.from("Not a real PDF stream", "utf-8");
+    await expect(DocumentParser.extractText(buffer, "pdf")).rejects.toThrow(
+      "Failed to parse PDF document"
+    );
+  });
+
   it("should throw error for unsupported file extensions", async () => {
     const buffer = Buffer.from("data", "utf-8");
     await expect(DocumentParser.extractText(buffer, "docx")).rejects.toThrow(

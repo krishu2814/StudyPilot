@@ -1,7 +1,9 @@
 import { jest } from "@jest/globals";
 import request from "supertest";
+import jwt from "jsonwebtoken";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/db/prisma.js";
+import { env } from "../src/config/env.js";
 import bcrypt from "bcryptjs";
 
 describe("Auth Endpoints", () => {
@@ -96,6 +98,36 @@ describe("Auth Endpoints", () => {
       expect(res.body.data.user.email).toBe("student@example.com");
       expect(res.body.data).toHaveProperty("token");
     });
+
+    it("should fail if email or password is missing on login", async () => {
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({ email: "student@example.com" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("required");
+    });
+
+    it("should fail on wrong password", async () => {
+      const hashedPassword = await bcrypt.hash("correctpassword", 10);
+      jest.spyOn(prisma.user, "findUnique").mockResolvedValueOnce({
+        id: "user-login",
+        email: "student@example.com",
+        name: "Student A",
+        passwordHash: hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const res = await request(app)
+        .post("/api/auth/login")
+        .send({ email: "student@example.com", password: "wrongpassword" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Invalid email or password");
+    });
   });
 
   describe("GET /api/auth/me", () => {
@@ -105,11 +137,19 @@ describe("Auth Endpoints", () => {
       expect(res.body.success).toBe(false);
     });
 
+    it("should reject request with malformed or invalid token", async () => {
+      const res = await request(app)
+        .get("/api/auth/me")
+        .set("Authorization", "Bearer invalid-token-string");
+      expect(res.status).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Invalid or expired token");
+    });
+
     it("should return user profile with valid token", async () => {
-      // First register or login to get token
       jest.spyOn(prisma.user, "findUnique")
-        .mockResolvedValueOnce(null) // for register findUnique
-        .mockResolvedValueOnce({   // for me endpoint
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
           id: "user-123",
           email: "learner@example.com",
           name: "Learner One",
@@ -138,6 +178,24 @@ describe("Auth Endpoints", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.email).toBe("learner@example.com");
+    });
+
+    it("should return 404 if user profile is not found in database", async () => {
+      const validToken = jwt.sign(
+        { id: "ghost-user", email: "ghost@example.com" },
+        env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      jest.spyOn(prisma.user, "findUnique").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("User not found");
     });
   });
 });

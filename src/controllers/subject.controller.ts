@@ -76,7 +76,8 @@ export const createTopic = async (req: AuthRequest, res: Response): Promise<void
       data: { topic },
     });
   } catch (error: any) {
-    res.status(400).json({
+    const status = error.message === "Subject not found." ? 404 : 400;
+    res.status(status).json({
       success: false,
       error: error.message || "Failed to create topic.",
     });

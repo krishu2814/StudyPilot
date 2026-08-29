@@ -61,7 +61,8 @@ export const updateConversationTitle = async (req: AuthRequest, res: Response): 
       data: { conversation },
     });
   } catch (error: any) {
-    res.status(400).json({
+    const status = error.message === "Conversation not found." ? 404 : 400;
+    res.status(status).json({
       success: false,
       error: error.message || "Failed to update conversation title.",
     });
@@ -100,7 +101,8 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
       data: result,
     });
   } catch (error: any) {
-    res.status(400).json({
+    const status = error.message === "Conversation not found." ? 404 : 400;
+    res.status(status).json({
       success: false,
       error: error.message || "Failed to send message.",
     });

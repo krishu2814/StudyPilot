@@ -2,6 +2,7 @@ import { quizRepository, QuizRepository } from "../repositories/quiz.repository.
 import { quizAIService, QuizAIService, DifficultyLevel } from "./quizAI.service.js";
 import { searchService, SearchService } from "./search.service.js";
 import { subjectRepository, SubjectRepository } from "../repositories/subject.repository.js";
+import { progressService, ProgressService } from "./progress.service.js";
 
 export interface GenerateQuizParams {
   userId: string;
@@ -28,7 +29,8 @@ export class QuizService {
     private quizRepo: QuizRepository = quizRepository,
     private quizAISvc: QuizAIService = quizAIService,
     private searchSvc: SearchService = searchService,
-    private subjectRepo: SubjectRepository = subjectRepository
+    private subjectRepo: SubjectRepository = subjectRepository,
+    private progressSvc: ProgressService = progressService
   ) {}
 
   async generateQuiz(params: GenerateQuizParams) {
@@ -179,6 +181,31 @@ export class QuizService {
     const finalScore = totalScore / totalQuestions;
 
     await this.quizRepo.saveAnswersAndUpdateScore(id, finalScore, gradedAnswers);
+
+    // If quiz has associated subject and topics, record mastery progress
+    if (quiz.subjectId) {
+      const topicId = quiz.questions.find((q) => q.topicId)?.topicId;
+      if (topicId) {
+        const correctCount = gradedAnswers.filter((a) => a.isCorrect).length;
+        const weaknesses = gradedAnswers
+          .map((a) => a.detectedWeakness)
+          .filter((w): w is string => Boolean(w && w.trim().length > 0));
+
+        try {
+          await this.progressSvc.recordQuizProgress({
+            userId,
+            subjectId: quiz.subjectId,
+            topicId,
+            questionsCount: totalQuestions,
+            correctCount,
+            score: finalScore,
+            weaknesses,
+          });
+        } catch (err) {
+          console.warn("Failed to update topic mastery progress:", err);
+        }
+      }
+    }
 
     return {
       quizId: id,

@@ -88,6 +88,19 @@ describe("Document Ingestion Endpoints", () => {
       expect(res.body.success).toBe(false);
       expect(res.body.error).toContain("Subject not found");
     });
+
+    it("should reject upload for unsupported file extensions", async () => {
+      const fileContent = Buffer.from("Binary data", "utf-8");
+
+      const res = await request(app)
+        .post("/api/documents/upload")
+        .set("Authorization", `Bearer ${validToken}`)
+        .attach("file", fileContent, "malicious.exe");
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Invalid file type");
+    });
   });
 
   describe("GET /api/documents", () => {
@@ -175,6 +188,18 @@ describe("Document Ingestion Endpoints", () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toContain("deleted successfully");
+    });
+
+    it("should return 404 when deleting non-existent document", async () => {
+      jest.spyOn(prisma.document, "findFirst").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .delete("/api/documents/doc-ghost")
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain("Document not found");
     });
   });
 });
