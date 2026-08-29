@@ -1,5 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-import { env } from "../config/env.js";
+import { llmManager, LLMManager } from "./llm/llm.manager.js";
 
 export interface ChatHistoryMessage {
   sender: string; // "user" or "assistant"
@@ -20,17 +19,12 @@ export interface GenerateTutorResponseParams {
 export interface TutorResponse {
   reply: string;
   usedSources: string[];
+  provider?: string;
+  model?: string;
 }
 
 export class AIService {
-  private ai: GoogleGenAI | null = null;
-  public readonly modelName = "gemini-3.7-flash";
-
-  constructor() {
-    if (env.GEMINI_API_KEY && env.GEMINI_API_KEY !== "your_gemini_api_key_here") {
-      this.ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    }
-  }
+  constructor(private llm: LLMManager = llmManager) {}
 
   async generateTutorResponse(params: GenerateTutorResponseParams): Promise<TutorResponse> {
     const { question, history = [], contextChunks = [] } = params;
@@ -47,76 +41,79 @@ export class AIService {
       )
     );
 
-    // If no live API client (testing or offline), return mock tutor response
-    if (!this.ai || process.env.NODE_ENV === "test") {
+    // In test environment without external mock override, return deterministic mock
+    if (process.env.NODE_ENV === "test") {
       return {
         reply: this.generateMockReply(question, contextChunks),
         usedSources: uniqueSources,
+        provider: "mock",
+        model: "mock-tutor-v1",
       };
     }
 
-    try {
-      const prompt = this.buildPrompt(question, history, contextChunks);
-
-      const response = await this.ai.models.generateContent({
-        model: this.modelName,
-        contents: prompt,
-      });
-
-      const reply = response.text || "I'm sorry, I couldn't formulate an answer at this moment.";
-
-      return {
-        reply: reply.trim(),
-        usedSources: uniqueSources,
-      };
-    } catch (error: any) {
-      if (process.env.NODE_ENV === "test" || !env.GEMINI_API_KEY) {
-        return {
-          reply: this.generateMockReply(question, contextChunks),
-          usedSources: uniqueSources,
-        };
-      }
-      throw new Error(`Failed to generate tutor response: ${error.message || error}`);
-    }
-  }
-
-  private buildPrompt(
-    question: string,
-    history: ChatHistoryMessage[],
-    contextChunks: ContextChunkInput[]
-  ): string {
-    let systemInstruction = `You are StudyPilot AI Tutor, an empathetic, engaging, and expert academic learning assistant.
+    const systemInstruction = `You are StudyPilot AI Tutor, an empathetic, engaging, and expert academic learning assistant.
 Your mission:
 1. Explain concepts clearly using simple analogies, structured breakdowns, and concrete examples.
 2. Ground your explanations primarily in the provided Study Material Context whenever relevant.
 3. Apply active learning: End your response with a concise, thoughtful follow-up question or quick concept check to test the student's understanding.
 4. Keep a friendly, encouraging, and focused tone. Use markdown headings, bullet points, and code blocks where helpful.`;
 
+    const userPrompt = this.buildUserPrompt(question, history, contextChunks);
+
+    try {
+      const response = await this.llm.generate(userPrompt, {
+        systemInstruction,
+        temperature: 0.7,
+      });
+
+      const reply = response.text || this.generateMockReply(question, contextChunks);
+
+      return {
+        reply: reply.trim(),
+        usedSources: uniqueSources,
+        provider: response.provider,
+        model: response.model,
+      };
+    } catch {
+      return {
+        reply: this.generateMockReply(question, contextChunks),
+        usedSources: uniqueSources,
+        provider: "mock",
+        model: "fallback-mock",
+      };
+    }
+  }
+
+  private buildUserPrompt(
+    question: string,
+    history: ChatHistoryMessage[],
+    contextChunks: ContextChunkInput[]
+  ): string {
     let contextSection = "";
     if (contextChunks.length > 0) {
-      contextSection = `\n\n--- STUDY MATERIAL CONTEXT (Ground Truth) ---\n` +
+      contextSection = `--- STUDY MATERIAL CONTEXT (Ground Truth) ---\n` +
         contextChunks
           .map(
             (c, i) =>
               `[Source ${i + 1}: ${c.documentTitle || "Document"}]\n${c.content}`
           )
           .join("\n\n") +
-        `\n--- END CONTEXT ---\n`;
+        `\n--- END CONTEXT ---\n\n`;
     }
 
     let historySection = "";
     if (history.length > 0) {
-      historySection = `\n\n--- PREVIOUS CONVERSATION ---\n` +
+      historySection = `--- PREVIOUS CONVERSATION ---\n` +
         history
           .map((m) => `${m.sender === "user" ? "Student" : "Tutor"}: ${m.content}`)
           .join("\n") +
-        `\n--- END PREVIOUS CONVERSATION ---\n`;
+        `\n--- END PREVIOUS CONVERSATION ---\n\n`;
     }
 
-    return `${systemInstruction}${contextSection}${historySection}\n\nStudent: ${question.trim()}\nTutor:`;
+    return `${contextSection}${historySection}Student: ${question.trim()}\nTutor:`;
   }
 
-  private generateMockReply(question: string, contextChunks: ContextChunkInput[]): string {
+  public generateMockReply(question: string, contextChunks: ContextChunkInput[]): string {
     const hasContext = contextChunks.length > 0;
     const contextSnippet = hasContext ? contextChunks[0].content.slice(0, 100) : "";
 
