@@ -8,6 +8,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "client:dev": "cd client && npm run dev",
+    "client:build": "cd client && npm run build",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs --no-cache",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
