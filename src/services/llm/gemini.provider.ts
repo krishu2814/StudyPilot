@@ -4,7 +4,7 @@ import { ILLMProvider, GenerateOptions, LLMResponse, ProviderName } from "./llm.
 
 export class GeminiProvider implements ILLMProvider {
   public readonly name: ProviderName = "gemini";
-  public readonly defaultModel = "gemini-3.7-flash";
+  public readonly defaultModel = "gemini-3.6-flash";
   private client: GoogleGenAI | null = null;
 
   constructor(apiKey?: string) {

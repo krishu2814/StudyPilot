@@ -4,7 +4,7 @@ import { ILLMProvider, GenerateOptions, LLMResponse, ProviderName } from "./llm.
 
 export class GroqProvider implements ILLMProvider {
   public readonly name: ProviderName = "groq";
-  public readonly defaultModel = "llama-3.3-70b-versatile";
+  public readonly defaultModel = "openai/gpt-oss-120b";
   private client: Groq | null = null;
 
   constructor(apiKey?: string) {
