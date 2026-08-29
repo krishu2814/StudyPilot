@@ -1,7 +1,7 @@
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 export class DocumentParser {
   static async extractText(buffer: Buffer, fileType: string): Promise<string> {
